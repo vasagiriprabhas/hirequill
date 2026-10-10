@@ -1,0 +1,9 @@
+Associate - Analytics and Insights
+
+We are looking for graduates who can turn data into insights. In this role you will
+write SQL queries, clean and wrangle data using Python and Excel, work with data
+warehousing concepts and ETL processes, and build dashboards in Tableau, Power BI or Qlik.
+
+Good communication, attention to detail and problem solving are important.
+Knowledge of statistics and basic machine learning is a plus.
+Familiarity with AWS or Azure is an advantage.
