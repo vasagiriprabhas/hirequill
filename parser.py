@@ -67,10 +67,15 @@ def split_sections(text: str) -> dict:
     return {name: "\n".join(lines).strip() for name, lines in sections.items() if lines}
 
 
-def normalize_for_matching(text: str) -> str:
-    """Lowercase, no symbols. Used later for skill matching (Day 2)."""
+def normalize_for_matching(text: str, keep_commas: bool = False) -> str:
+    """Lowercase, no symbols. Used for skill matching.
+
+    keep_commas=True is used when reading job descriptions, so we can tell the
+    difference between "Python, SQL" (both needed) and "Tableau or Power BI".
+    """
     text = text.lower()
-    text = re.sub(r"[^a-z0-9+#./ \n]", " ", text)  # keep c++, c#, node.js
+    allowed = r"[^a-z0-9+#./, \n]" if keep_commas else r"[^a-z0-9+#./ \n]"
+    text = re.sub(allowed, " ", text)  # keep c++, c#, node.js
     return re.sub(r"\s+", " ", text).strip()
 
 

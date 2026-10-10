@@ -1,1 +1,5 @@
 pdfplumber
+reportlab
+numpy
+scikit-learn
+sentence-transformers
