@@ -11,9 +11,12 @@ SECTION_HEADINGS = {
     "skills": ["skills", "technical skills", "key skills", "core skills", "technologies"],
     "projects": ["projects", "academic projects", "personal projects", "project work"],
     "experience": ["experience", "work experience", "internships", "internship", "professional experience"],
-    "education": ["education", "academic details", "academics", "qualification", "qualifications"],
+    "education": ["education", "academic details", "academics", "qualification", "qualifications", "academic qualification",
+                  "academic qualifications", "educational qualification", "educational qualifications", "education details"],
     "certifications": ["certifications", "certificates", "courses", "licenses"],
-    "achievements": ["achievements", "awards", "accomplishments", "extracurricular", "activities"],
+    "languages": ["languages", "language skills", "languages known"],
+    "interests": ["interests", "hobbies", "hobbies and interests", "interests and hobbies", "hobbies interests", "interests hobbies"],
+    "achievements": ["leadership", "leadership and extracurricular", "extracurricular activities", "achievements", "awards", "accomplishments", "extracurricular", "activities"],
 }
 
 # Reverse lookup: "technical skills" -> "skills"
@@ -45,12 +48,45 @@ def clean_text(text: str) -> str:
     return "\n".join(line.strip() for line in text.split("\n")).strip()
 
 
+# Keywords for headings that are not in the exact list above, e.g. "Project Experience",
+# "Technical Projects", "Internships & Projects". Checked in this order.
+_FUZZY = [
+    ("project", "projects"), ("intern", "experience"), ("experience", "experience"),
+    ("skill", "skills"), ("technolog", "skills"), ("education", "education"),
+    ("academic", "education"), ("qualification", "education"), ("certif", "certifications"), ("achievement", "achievements"),
+    ("award", "achievements"), ("leadership", "achievements"), ("extracurricular", "achievements"),
+    ("summary", "summary"), ("objective", "summary"), ("profile", "summary"),
+]
+
+
 def _heading_of(line: str):
-    """Return the section name if this line looks like a heading, else None."""
-    candidate = re.sub(r"[^a-zA-Z ]", "", line).strip().lower()
-    if not candidate or len(candidate.split()) > 4:
+    """Return the section name if this line looks like a heading, else None.
+
+    Exact names first ("Technical Skills"). Then a looser match for short lines that
+    LOOK like headings: ALL CAPS, ending with ':', or ending in the keyword itself.
+    A project title like "Skills Gap Analyzer" is not treated as a heading.
+    """
+    letters = re.sub(r"[^a-zA-Z ]", "", line).strip()
+    words = letters.lower().split()
+    if len(words) > 2 and all(len(w) == 1 for w in words):   # "P R O J E C T S"
+        words = ["".join(words)]
+    if not words or len(words) > 6:
         return None
-    return _HEADING_LOOKUP.get(candidate)
+    exact = _HEADING_LOOKUP.get(" ".join(words))
+    if exact:
+        return exact
+    if len(words) > 4:
+        return None
+    has_connector = bool(re.search(r"&|\band\b", line, re.IGNORECASE))
+    keyword_at_end = any(words[-1].startswith(k) for k, _ in _FUZZY)
+    keyword_at_start = has_connector and any(words[0].startswith(k) for k, _ in _FUZZY)
+    looks_like_heading = letters.isupper() or line.rstrip().endswith(":") or keyword_at_end or keyword_at_start
+    if not looks_like_heading:
+        return None
+    for keyword, section in _FUZZY:
+        if any(keyword in w for w in words):
+            return section
+    return None
 
 
 def split_sections(text: str) -> dict:
