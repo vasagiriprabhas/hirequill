@@ -8,7 +8,7 @@ mock interview (good match) or shows a gap report with what to add and learn (lo
 - [x] Day 2: Skill extraction (246 skills, resume vs JD comparison)
 - [x] Day 3: Match score (skills + meaning, 3 bands, 'any one of' handling)
 - [x] Day 4: Gap report (rule-based + AI suggestions, learning plan)
-- [ ] Day 5: Interview module
+- [x] Day 5: Mock interview (questions from your resume + job, scoring, summary)
 - [ ] Day 6: Streamlit UI
 - [ ] Day 7: Testing and deployment
 
@@ -69,3 +69,37 @@ python day4.py your_resume.pdf jd.txt --hours 15           # study hours per wee
 - For each line it asks you one question ("how many rows?") so you add the real detail yourself.
 - Your name, email, phone and profile links are removed before text is sent to the AI.
 - If there is no key, no internet or the free service is busy, the rule-based report still works.
+
+## Run Day 5: mock interview
+```bash
+python day5.py sample_resume.pdf sample_jd.txt --preview --no-ai   # only list the questions
+python day5.py your_resume.pdf jd.txt --no-ai                      # interview, keyword-estimate scoring
+python day5.py your_resume.pdf jd.txt                              # interview, AI scoring if a key is set
+python day5.py your_resume.pdf jd.txt --questions 5                # 3 to 12 questions
+python test_interview.py                                           # self-test, should end with ALL TESTS PASSED
+```
+In the interview: type your answer, then press Enter on an empty line to submit. Type `skip` to skip a question
+or `quit` to stop (Ctrl+C also works). If an answer scores below 6/10 you can retry that question once.
+
+### What it asks (about 7 questions)
+1. Tell me about yourself.
+2. A walk-through question for each of your real projects (found in your resume, up to 3).
+3. Technical questions on skills you list AND the job wants (SQL, Python, Excel, Tableau and more).
+4. One question on a skill the job wants that is missing from your resume (how would you learn it?).
+5. A behavioural question (teamwork, solving a problem).
+
+### How answers are scored
+- **With an AI key:** the AI judges your answer against the key points of a good answer. It is told to
+  ignore any instructions hidden inside your answer, and the score is kept between 0 and 10.
+- **Without a key:** a keyword check gives an ESTIMATE and says so. It cannot understand meaning, so a
+  longer answer is needed to earn credit for each point, and a list of keywords does not score well.
+- Very short answers are capped at 3/10 either way.
+- Your answers pass through the same redaction as Day 4 (email, phone and profile links removed) before
+  they are sent to the AI.
+
+### The summary
+Average score, strong answers, topics to practise first, the key points you missed most often, and a verdict.
+
+### Add your own interview questions
+Questions and what a good answer covers live in `questionbank.py`. Add a skill and a few key points
+and the interview will use it.
