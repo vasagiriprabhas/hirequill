@@ -129,7 +129,7 @@ kind, text = BAND_TEXT[final["band"]]
 getattr(st, kind)(text)
 method = "AI language model" if meaning.get("backend") == "embedding" else "word-overlap method"
 st.caption(f"Meaning score uses the {method}. Scores are a guide, not a promise: real employers use their own filters.")
-if meaning.get("note"):
+if meaning.get("note") and "unavailable" not in meaning["note"]:      # the technical "model unavailable" text is not for visitors
     st.caption(meaning["note"])
 for warning in analysis["warnings"]:
     st.warning(warning)
