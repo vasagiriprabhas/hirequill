@@ -9,7 +9,7 @@ mock interview (good match) or shows a gap report with what to add and learn (lo
 - [x] Day 3: Match score (skills + meaning, 3 bands, 'any one of' handling)
 - [x] Day 4: Gap report (rule-based + AI suggestions, learning plan)
 - [x] Day 5: Mock interview (questions from your resume + job, scoring, summary)
-- [ ] Day 6: Streamlit UI
+- [x] Day 6: Streamlit web app (upload, score, gap report, interview, re-score)
 - [ ] Day 7: Testing and deployment
 
 ## Setup
@@ -103,3 +103,31 @@ Average score, strong answers, topics to practise first, the key points you miss
 ### Add your own interview questions
 Questions and what a good answer covers live in `questionbank.py`. Add a skill and a few key points
 and the interview will use it.
+
+## Day 6: the web app
+
+```
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Open the link it prints (usually http://localhost:8501).
+
+**How to use it**
+1. Upload your resume PDF and paste a job description, then press **Analyze**. Or press **Try a sample**.
+2. Read the score: 60% skills + 40% meaning. High (70+) opens the **Mock interview**; medium and low open the **Gap report**.
+3. **Match details** shows matched/missing skills and where each skill appears in your resume.
+4. **Gap report** shows weak points, missing skills and a free learning plan. The hours/week slider changes the plan.
+   Press **Get AI suggestions** for rewrites of your real lines (needs an API key).
+5. **Mock interview**: answer in the chat box. A weak answer can be retried once. Skip or end any time, then read the summary.
+6. **Re-score**: improve your resume, upload the new PDF, and see the score change for the same job.
+
+**Safety and limits**
+- The resume is read in memory only, never saved. Limits: 5 MB, 6 pages, 12,000 characters of job description.
+- Each visit gets a cap of AI requests (`HIREQUILL_AI_LIMIT`, default 40) so a public demo cannot use up the free quota.
+  After that, the rule-based report and estimated scores keep working.
+- If the AI is busy, the page shows a friendly message and everything else still works.
+- Set `HIREQUILL_BACKEND=tfidf` on small free hosts to skip the large language model download.
+
+**Code layout**: `pipeline.py` (input checks, scoring, AI cap) and `session.py` (interview flow) hold the logic and have no
+Streamlit in them, so `python test_app_logic.py` tests them without a browser. `app.py` only draws the page.
