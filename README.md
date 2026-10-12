@@ -1,7 +1,39 @@
 # Hirequill: AI Resume-JD Matcher and Interview Coach
 
-Upload a resume and a job description. The app scores the match, then either starts a
-mock interview (good match) or shows a gap report with what to add and learn (low match).
+**Live app: https://hirequill.streamlit.app/** (free to use, nothing is stored)
+
+Upload your resume (PDF) and paste a job description. Hirequill scores the match, then either starts a
+mock interview (good match) or shows a gap report with what to fix, what to add and what to learn (weaker match).
+Improve your resume, upload it again, and see the score change.
+
+| Score and match details | Gap report |
+|---|---|
+| ![Score card](docs/score-card.png) | ![Gap report](docs/gap-report.png) |
+
+![Mock interview](docs/interview.png)
+
+## What it does
+- **Match score** = 60% skills + 40% meaning. Skills: how many of the job's required skills your resume shows (246 skills,
+  "any one of" requirements handled). Meaning: whether your resume talks about the same things the job describes.
+- **Three bands:** 70+ strong (go to the mock interview), 40-70 partial (gap report, interview optional), below 40 weak (gap report first).
+- **Gap report:** weak points in the resume, missing skills ranked by how often the job mentions them, a free learning plan with
+  hours and resources, and optional AI rewrites of your own resume lines.
+- **Mock interview:** questions built from your projects and the job's skills, scored 0-10 with feedback, one retry per question, and a final summary.
+- **Re-score:** upload an improved resume against the same job and see the change.
+
+## Built to be honest
+- The AI never invents your resume lines: the code picks your real lines and the AI only rewrites them. Suggestions that add a skill,
+  a number or a level claim (for example "fluent") are flagged to check.
+- If there is no AI key, or the AI is busy or over its limit, the app falls back to a rule-based report and keyword-estimate scores,
+  and says which one you are seeing.
+- Your resume is read in memory only. Email, phone and profile links are removed before any text goes to the AI.
+- The score is a guide, not a promise. I calibrated it on 11 real resume and job pairs (see `calibrate.py`), which is a small sample.
+
+## Tech
+Python, Streamlit, pdfplumber, scikit-learn (TF-IDF), sentence-transformers (all-MiniLM-L6-v2), Gemini / Groq free APIs.
+The free host uses the lighter TF-IDF meaning score; run it locally with `requirements-local.txt` for the language-model version.
+
+Built by Prabhas (B.Tech, AI and Data Science) in a 7-day sprint.
 
 ## Progress
 - [x] Day 1: Read resume PDF, clean text, split into sections
