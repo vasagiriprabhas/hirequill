@@ -10,7 +10,7 @@ mock interview (good match) or shows a gap report with what to add and learn (lo
 - [x] Day 4: Gap report (rule-based + AI suggestions, learning plan)
 - [x] Day 5: Mock interview (questions from your resume + job, scoring, summary)
 - [x] Day 6: Streamlit web app (upload, score, gap report, interview, re-score)
-- [ ] Day 7: Testing and deployment
+- [x] Day 7: Calibration script, usage guards, deployment
 
 ## Setup
 ```bash
@@ -131,3 +131,37 @@ Open the link it prints (usually http://localhost:8501).
 
 **Code layout**: `pipeline.py` (input checks, scoring, AI cap) and `session.py` (interview flow) hold the logic and have no
 Streamlit in them, so `python test_app_logic.py` tests them without a browser. `app.py` only draws the page.
+
+## Day 7: check the score, then put it online
+
+### 1. Check the score against your own judgement
+Make `pairs.csv` (see the top of `calibrate.py`) with 10 or more resume + job pairs and your honest opinion of each
+(high / medium / low), then run `python calibrate.py pairs.csv`. Rows marked `<--` are where the app disagrees with you.
+Use the output to adjust `CALIBRATION` in `scorer.py`.
+
+### 2. Deploy free on Streamlit Community Cloud
+1. Push the project to GitHub (never commit your resume, job descriptions or API keys).
+2. Go to share.streamlit.io, sign in with GitHub, press **Create app**, pick the repository, branch `main`, main file `app.py`.
+3. Open **Advanced settings → Secrets** and paste (use your real key):
+   ```
+   GEMINI_API_KEY = "your_key"
+   HIREQUILL_AI_LIMIT = "30"
+   HIREQUILL_DAILY_AI = "500"
+   ```
+   (or `GROQ_API_KEY = "..."`). Keys live in the platform's secrets, not in the code.
+4. Press **Deploy**. Your link looks like `https://<name>.streamlit.app`.
+
+**Free-host memory:** Community Cloud gives an app roughly 1-2.7 GB of RAM. The deployed `requirements.txt` therefore leaves out
+`sentence-transformers`, and the meaning score uses the lighter word-based method (shown on the page). For the full AI meaning
+model run locally with `pip install -r requirements-local.txt`.
+
+### Protecting the free AI quota
+- Per visitor: `HIREQUILL_AI_LIMIT` requests per visit, and a `HIREQUILL_AI_COOLDOWN` (default 3 s) between requests.
+- Whole site: `HIREQUILL_DAILY_AI` requests per day for everyone together. Past any limit the visitor sees a friendly message
+  and the rule-based report and estimated scores keep working.
+
+### 3. Screenshots and demo for your README
+Once the app is live: take 3 screenshots (score card, gap report, interview summary) and a short screen recording of
+Analyze → Gap report → Re-score (a free tool like ScreenToGif makes a GIF). Make a folder `docs/`, upload the images on GitHub,
+and add them here with `![Score card](docs/score.png)`. Put your live link at the top of this README.
+Do not show your real phone number or email in the screenshots: use "Try a sample" or blur them.

@@ -1,0 +1,5 @@
+name,resume,jd,expected
+Deloitte analyst,my_resume.pdf,deloitte_analyst.txt,medium
+Data analyst at a startup,my_resume.pdf,startup_analyst.txt,high
+Java backend job,my_resume.pdf,java_backend.txt,low
+Friend A for analyst job,friend_a.pdf,deloitte_analyst.txt,low

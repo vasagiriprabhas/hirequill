@@ -2,6 +2,5 @@ pdfplumber
 reportlab
 numpy
 scikit-learn
-sentence-transformers
 requests
 streamlit

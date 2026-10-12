@@ -23,7 +23,7 @@ BANDS = (
 # Raw similarity numbers are not percentages. These (low, high) pairs stretch the raw
 # similarity onto 0-100. They are starting values: tune them on Day 6 using real
 # resume and job description pairs.
-CALIBRATION = {"embedding": (0.20, 0.60), "tfidf": (0.00, 0.30)}
+CALIBRATION = {"embedding": (0.35, 0.60), "tfidf": (0.00, 0.20)}
 
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 _model = None

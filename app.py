@@ -23,8 +23,14 @@ BAND_TEXT = {
 }
 
 # ------------------------------------------------------------------ state
+@st.cache_resource
+def daily_guard():
+    """One counter shared by every visitor of this server."""
+    return pl.DailyGuard()
+
+
 S = st.session_state
-S.setdefault("budget", pl.AiBudget())
+S.setdefault("budget", pl.AiBudget(shared=daily_guard()))
 S.setdefault("history", [])
 S.setdefault("analysis", None)
 S.setdefault("resume", None)

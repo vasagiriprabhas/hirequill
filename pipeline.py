@@ -8,6 +8,9 @@ No Streamlit in this file, so everything here can be tested on its own (see test
 import hashlib
 import io
 import os
+import re
+import threading
+import time
 
 import pdfplumber
 
@@ -20,6 +23,7 @@ MAX_PDF_MB = 5
 MAX_PAGES = 6
 MAX_JD_CHARS = 12000
 MIN_JD_WORDS = 25
+MIN_SKILLS_FOR_FULL_WEIGHT = 4
 DEFAULT_AI_LIMIT = int(os.environ.get("HIREQUILL_AI_LIMIT", "40"))
 BACKEND = os.environ.get("HIREQUILL_BACKEND", "auto")     # "tfidf" = lighter, for small free hosts
 
@@ -61,11 +65,24 @@ def resume_from_pdf(data: bytes) -> dict:
 
 
 # ---------------------------------------------------------------- scoring
+# Job sites add a block of labels (Role, Department, Education...) that describe the listing, not the job.
+# "Department: Engineering - Software & QA" would otherwise be read as a "quality assurance" requirement.
+_LISTING_LABELS = re.compile(
+    r"^\s*(role|industry type|department|employment type|role category|ug|pg|disclaimer|education|"
+    r"years of experience)\s*:?.*$", re.IGNORECASE)
+
+
+def strip_listing_labels(text: str) -> str:
+    kept = [line for line in text.splitlines() if not _LISTING_LABELS.match(line)]
+    return "\n".join(kept).strip()
+
+
 def clean_jd(jd_text: str) -> str:
     text = (jd_text or "").strip()
     if not text:
         raise InputProblem("Paste the job description first.")
-    return text[:MAX_JD_CHARS]
+    stripped = strip_listing_labels(text)
+    return (stripped if len(stripped.split()) >= 5 else text)[:MAX_JD_CHARS]
 
 
 def jd_key(jd_text: str) -> str:
@@ -78,7 +95,10 @@ def analyze(resume: dict, jd_text: str, backend: str = None) -> dict:
     resume_skills = extract_skills(resume["clean_text"], expand=True)
     skills = match_skills(resume_skills, jd)
     meaning = meaning_score(resume["clean_text"], jd, backend=backend or BACKEND)
-    final = final_score(skills["score"], meaning["score"])
+    # A job text that names only 0-3 recognisable skills gives a skills score built on very little evidence
+    # (100% of one skill is not a strong match). Count that part in proportion to the evidence we have.
+    evidence = min(skills["jd_skill_count"], MIN_SKILLS_FOR_FULL_WEIGHT) / MIN_SKILLS_FOR_FULL_WEIGHT
+    final = final_score(skills["score"] * evidence, meaning["score"])
 
     warnings = []
     if len(jd.split()) < MIN_JD_WORDS:
@@ -87,6 +107,9 @@ def analyze(resume: dict, jd_text: str, backend: str = None) -> dict:
     if skills["jd_skill_count"] == 0:
         warnings.append("I could not recognise any skills in that job description. "
                         "Check that you pasted the right text.")
+    elif skills["jd_skill_count"] < 3:
+        warnings.append(f"Only {skills['jd_skill_count']} skill(s) were recognised in this job description, so the skills "
+                        "part of the score counts for less. Treat the score as a rough guide.")
     if len(resume["clean_text"].split()) < 60:
         warnings.append("Very little text was found in your resume. Check that the PDF is not a scan.")
 
@@ -114,13 +137,43 @@ def default_view(band: str) -> str:
 
 
 # ---------------------------------------------------------------- protecting the free AI quota
-class AiBudget:
-    """Counts AI calls for one visitor. Past the limit, the AI is refused politely and the app
-    carries on with its rule-based report and keyword-estimate scoring."""
+DAILY_AI_LIMIT = int(os.environ.get("HIREQUILL_DAILY_AI", "600"))     # all visitors together, per day
+AI_COOLDOWN_SECONDS = float(os.environ.get("HIREQUILL_AI_COOLDOWN", "3"))
 
-    def __init__(self, limit: int = DEFAULT_AI_LIMIT):
+
+class DailyGuard:
+    """One shared counter for ALL visitors, so a public demo cannot use up the free API quota in a day.
+    The app keeps one of these for the whole server (st.cache_resource). It resets each UTC day."""
+
+    def __init__(self, limit: int = DAILY_AI_LIMIT, today=None):
+        self.limit = limit
+        self._today = today or (lambda: time.strftime("%Y-%m-%d", time.gmtime()))
+        self._day, self.used = self._today(), 0
+        self._lock = threading.Lock()
+
+    def take(self) -> bool:
+        with self._lock:
+            if self._today() != self._day:
+                self._day, self.used = self._today(), 0
+            if self.used >= self.limit:
+                return False
+            self.used += 1
+            return True
+
+
+class AiBudget:
+    """Counts AI calls for one visitor. Past the limit (or while cooling down, or when the whole site has
+    used its daily quota) the AI is refused politely and the app carries on with its rule-based report
+    and keyword-estimate scoring."""
+
+    def __init__(self, limit: int = DEFAULT_AI_LIMIT, cooldown: float = AI_COOLDOWN_SECONDS,
+                 shared: DailyGuard = None, clock=time.monotonic):
         self.limit = limit
         self.used = 0
+        self.cooldown = cooldown
+        self.shared = shared
+        self._clock = clock
+        self._last = None
 
     @property
     def remaining(self) -> int:
@@ -131,6 +184,13 @@ class AiBudget:
             if self.used >= self.limit:
                 raise LLMUnavailable("This visit has used its free AI allowance. "
                                      "The rule-based report and estimated scores still work.")
+            now = self._clock()
+            if self._last is not None and now - self._last < self.cooldown:
+                raise LLMUnavailable("Please wait a few seconds before the next AI request, then try again.")
+            if self.shared is not None and not self.shared.take():
+                raise LLMUnavailable("The AI is very busy today (the free quota is used up). "
+                                     "Try again tomorrow; the rule-based report and estimated scores still work.")
+            self._last = now
             self.used += 1
             return ask_fn(*args, **kwargs)
         return guarded

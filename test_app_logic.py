@@ -65,6 +65,15 @@ check("final = 60% skills + 40% meaning",
 check("a very short job description gets a warning", pl.analyze(resume, "Python developer", backend="tfidf")["warnings"])
 check("job description is capped", len(pl.clean_jd("word " * 20000)) <= pl.MAX_JD_CHARS)
 
+
+# --- job-site labels and thin job descriptions
+listing = "Write SQL queries and build dashboards in Tableau using Python and Excel every day.\nRole: Analyst\nDepartment: Engineering - Software & QA\nUG: Any Graduate"
+check("listing labels are removed from a job description", "Department" not in pl.clean_jd(listing) and "SQL" in pl.clean_jd(listing))
+check("labels alone do not empty the job description", pl.clean_jd("Role: Analyst\nDepartment: Data") != "")
+thin = pl.analyze(resume, "Support engineer. Must know SQL. Provide helpdesk support to users over phone and email, "
+                  "reset passwords, and document every ticket carefully for the team lead.", backend="tfidf")
+check("one recognised skill does not give a high score", thin["skills"]["jd_skill_count"] <= 1 and thin["final"]["band"] != "high")
+
 # --- history / re-score
 h1 = pl.history_entry("First", a)
 better = pl.resume_from_text(samples.RESUME + "\nCompleted a Power BI course and used ETL and data warehousing in a project.")
@@ -81,7 +90,7 @@ check("low and medium go to the gap report", pl.default_view("low") == pl.defaul
 
 # --- AI budget
 calls = []
-budget = pl.AiBudget(limit=2)
+budget = pl.AiBudget(limit=2, cooldown=0)
 guarded = budget.wrap(lambda *a, **k: calls.append(1) or "reply")
 guarded(); guarded()
 try:
@@ -90,6 +99,29 @@ try:
 except LLMUnavailable:
     blocked = True
 check("AI budget blocks calls past the limit", blocked and len(calls) == 2 and budget.remaining == 0)
+
+# --- cooldown and daily guard
+clock = [100.0]
+b2 = pl.AiBudget(limit=10, cooldown=3, clock=lambda: clock[0])
+g2 = b2.wrap(lambda *a, **k: "ok")
+g2()
+try:
+    g2(); cooled = False
+except LLMUnavailable as e:
+    cooled = "wait" in str(e)
+clock[0] += 4
+check("cooldown refuses a too-quick second call, then allows it", cooled and g2() == "ok" and b2.used == 2)
+day = ["d1"]
+guard = pl.DailyGuard(limit=2, today=lambda: day[0])
+check("daily guard allows up to its limit", guard.take() and guard.take() and not guard.take())
+day[0] = "d2"
+check("daily guard resets on a new day", guard.take())
+sb = pl.AiBudget(limit=10, cooldown=0, shared=pl.DailyGuard(limit=0))
+try:
+    sb.wrap(lambda *a, **k: "ok")(); full = False
+except LLMUnavailable as e:
+    full = "busy" in str(e) and sb.used == 0
+check("a used-up site quota gives a friendly message and costs the visitor nothing", full)
 
 # --- interview session
 RES = pl.resume_from_text(samples.RESUME)
